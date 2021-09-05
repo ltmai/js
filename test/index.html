@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Mocha Tests</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <link rel="stylesheet" href="https://unpkg.com/mocha/mocha.css" />
+</head>
+
+<body>
+    <div id="mocha"></div>
+
+    <script src="https://unpkg.com/chai/chai.js"></script>
+    <script src="https://unpkg.com/mocha/mocha.js"></script>
+    <script src="https://unpkg.com/sinon/pkg/sinon.js"></script>
+
+    <script class="mocha-init">
+        mocha.setup('bdd');
+        mocha.checkLeaks();
+    </script>
+    <!--test code begin --->
+    <script language="javascript">
+        describe('test', () => {
+            it('passes', () => {
+                var clock=sinon.useFakeTimers(new Date(2000,0,15));
+                chai.expect(1).to.eql(1);
+                clock.restore();
+            });
+        });
+    </script>
+    <!--test code begin --->
+    <script class="mocha-exec">
+        mocha.run();
+    </script>
+</body>
+
+</html>
