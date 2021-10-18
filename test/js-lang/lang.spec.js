@@ -2,7 +2,7 @@ let expect = chai.expect;
 let assert = chai.assert;
 
 describe('JS language features', () => {
-    it('JS data types', function () {
+    it('typeof(x) returns type as string', function () {
         expect(typeof undefined).equals("undefined");
         expect(typeof 0).equals("number");
         expect(typeof 10n).equals("bigint");
@@ -26,6 +26,135 @@ describe('JS language features', () => {
     });
 });
 
+describe('ES6-destructuring', () => {
+    let FIRST = 'first';
+    let SECOND = 'second';
+    let THIRD = 'third';
+    let FOURTH = 'fourth';
+    let FIFTH = 'fifth';
+
+    it('Access items in array', () => {
+        let [first, second, third, , fifth] = [ FIRST, SECOND, THIRD, FOURTH, FIFTH ];
+        assert.equal(FIRST, first);
+        assert.equal(SECOND, second);
+        assert.equal(THIRD, third);
+        // skip the fourth
+        assert.equal(FIFTH, fifth);
+    });
+    it('Access items in nested pattern (object)', () => {
+        const TWO_IN_GERMAN = 'Zwei means Two in German';
+        let [one, [{two}, three]] = [ 1, [{two:TWO_IN_GERMAN}, 3]];
+
+        assert.equal(1, one);
+        assert.equal(TWO_IN_GERMAN, two);
+        assert.equal(3, three);
+    });
+    it('Access items in nested pattern (array)', () => {
+        let [one, [[two], three]] = [ 1, [[2], 3]];
+
+        assert.equal(1, one);
+        assert.equal(2, two);
+        assert.equal(3, three);
+    });
+    it('Capture trailing items with rest pattern', () => {
+        let [head, ...tail] = [1, 2, 3, 4, 5];
+
+        assert.equal(1, head);
+        assert.sameOrderedMembers(tail, [2, 3, 4, 5]);
+    });
+    it('Destructure an object', () => {
+        let { name, age } = { name: "Charlie", id : 1 };
+
+        assert.equal("Charlie", name);
+        assert.isUndefined(age);
+    });
+    it('Destructuring without direct declaration requires parentheses', () => {
+        let foo;
+        // Without parentheses Javascript recognizes any statement starting
+        // with { as a block statement, not an object.
+        ({ foo } = { foo: "lorem", bar : "ipsum" });
+
+        assert.equal("lorem", foo);
+    });
+    it('Destructuring null value gives a TypeError', () => {
+        assert.throws(()=>{
+            let { v } = null;
+
+        }, TypeError, /Cannot destructure property \'v\' of \'null\' as it is null./)
+    });
+    it('Default value when property is not defined', () => {
+        const defaultValue = "default message";
+        let [message = defaultValue] = [];
+        let [missing = true] = [];
+        let [x = 3] = [];
+
+        assert.equal(defaultValue, message);
+        assert.isOk(missing);
+        assert.equal(3, x);
+    });
+    it('Application: function named parameter definitions', () => {
+        // accepts a single object with multiple properties 
+        // as a parameter instead of forcing their order. 
+        function myFunction({ first, second, third}) {
+            return [first, second, third];
+        }
+
+        let obj = {
+            first  : FIRST, 
+            second : SECOND, 
+            third  : THIRD, 
+            other  : 1
+        };  
+
+        assert.sameOrderedMembers([FIRST, SECOND, THIRD], myFunction(obj)) ;
+    });
+    it('Application: provide default values for configuration object parameters', () => {
+        // Giving default values for config object avoids repeating
+        // let foo = config.foo || defaultFoo
+        const PRODUCTION_DATE=Date.now();
+        const DEFAULT_FUEL="diesel";
+        const DEFAULT_POWER=300;
+        const DEFAULT_UNIT="PS";
+
+        function buildEngine({
+          model,
+          cylinders,
+          fuel = DEFAULT_FUEL,
+          power = DEFAULT_POWER,
+          unit = DEFAULT_UNIT 
+        }) {
+         return {
+                model,
+                cylinders,
+                fuel,
+                date : PRODUCTION_DATE,
+                power,
+                unit
+            }
+        }
+
+        let engine = buildEngine({ model:"A43", cylinders: 12, power:500 });
+
+        assert.equal("A43", engine.model);
+        assert.equal(12, engine.cylinders);
+        assert.equal(500, engine.power);
+        assert.equal(DEFAULT_FUEL, engine.fuel);
+        assert.equal(DEFAULT_UNIT, engine.unit);
+        assert.equal(PRODUCTION_DATE, engine.date);
+    });
+    it('', () => {
+    });
+    it('', () => {
+    });
+    it('', () => {
+    });
+    it('', () => {
+    });
+    it('', () => {
+    });
+    it('', () => {
+    });
+});
 
 describe('Template literals', () => {
 
