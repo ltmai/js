@@ -1,8 +1,15 @@
 let expect = chai.expect;
 let assert = chai.assert;
 
+
+const FIRST = 'first';
+const SECOND = 'second';
+const THIRD = 'third';
+const FOURTH = 'fourth';
+const FIFTH = 'fifth';
+
 describe('JS language features', () => {
-    it('typeof(x) returns type as string', function () {
+    it('typeof(x) returns type as string', () => {
         expect(typeof undefined).equals("undefined");
         expect(typeof 0).equals("number");
         expect(typeof 10n).equals("bigint");
@@ -17,22 +24,28 @@ describe('JS language features', () => {
         // Array.from() creates a new Array instance from arrayLike, an array-like or iterable object.
         assert.sameOrderedMembers(['a', 'b', 'c', 'd', 'e'], Array.from('abcde'), "Arrays are not the same");
     });
-    it('Convert from string to array with spread syntax [...str]', function () {
-        // Spread syntax allows an iterable such as an array expression or string to be expanded in places 
-        // where zero or more arguments (for function calls) or elements (for array literals) are expected, 
-        // or an object expression to be expanded in places where zero or more key-value pairs (for object 
-        // literals) are expected.
-        assert.sameOrderedMembers(['a', 'b', 'c', 'd', 'e'], [...'abcde'], "Arrays are not the same");
+    it('for..of of built-in Array, String, Map, Set, ...', () => {
+        let testForOf = (data, expected) => {
+            let result=[];
+            for (let v of data) {
+                result.push(v);
+            }
+            assert.sameOrderedMembers(expected, result);
+        }
+        testForOf([1,2,3], [1,2,3]);
+        testForOf("abc", ['a', 'b', 'c']);
+    });
+    it('Nullish coalescing operator', ()=> {
+        // The ?? operator provides a way to choose a defined value from a list of variables. The result of 
+        // a ?? b is a unless it’s null/undefined, then b.
+        expect('bbb', null ?? 'bbb');
+        expect('bbb', undefined ?? 'bbb');
+        expect('aaa', 'aaa' ?? 'bbb');
+        expect(123, 123 ?? undefined);
     });
 });
 
 describe('ES6-destructuring', () => {
-    let FIRST = 'first';
-    let SECOND = 'second';
-    let THIRD = 'third';
-    let FOURTH = 'fourth';
-    let FIFTH = 'fifth';
-
     it('Access items in array', () => {
         let [first, second, third, , fifth] = [ FIRST, SECOND, THIRD, FOURTH, FIFTH ];
         assert.equal(FIRST, first);
@@ -56,7 +69,7 @@ describe('ES6-destructuring', () => {
         assert.equal(2, two);
         assert.equal(3, three);
     });
-    it('Capture trailing items with rest pattern', () => {
+    it('Capture trailing items with rest operator', () => {
         let [head, ...tail] = [1, 2, 3, 4, 5];
 
         assert.equal(1, head);
@@ -79,7 +92,6 @@ describe('ES6-destructuring', () => {
     it('Destructuring null value gives a TypeError', () => {
         assert.throws(()=>{
             let { v } = null;
-
         }, TypeError, /Cannot destructure property \'v\' of \'null\' as it is null./)
     });
     it('Default value when property is not defined', () => {
@@ -117,13 +129,13 @@ describe('ES6-destructuring', () => {
         const DEFAULT_UNIT="PS";
 
         function buildEngine({
-          model,
-          cylinders,
-          fuel = DEFAULT_FUEL,
-          power = DEFAULT_POWER,
-          unit = DEFAULT_UNIT 
+            model,
+            cylinders,
+            fuel = DEFAULT_FUEL,
+            power = DEFAULT_POWER,
+            unit = DEFAULT_UNIT 
         }) {
-         return {
+            return {
                 model,
                 cylinders,
                 fuel,
@@ -133,16 +145,29 @@ describe('ES6-destructuring', () => {
             }
         }
 
-        let engine = buildEngine({ model:"A43", cylinders: 12, power:500 });
+        let engine = buildEngine({ model:"AMG 63 V12", cylinders: 12, power:500 });
 
-        assert.equal("A43", engine.model);
+        assert.equal("AMG 63 V12", engine.model);
         assert.equal(12, engine.cylinders);
         assert.equal(500, engine.power);
         assert.equal(DEFAULT_FUEL, engine.fuel);
         assert.equal(DEFAULT_UNIT, engine.unit);
         assert.equal(PRODUCTION_DATE, engine.date);
     });
-    it('', () => {
+    it('Order does not matter when destructuring object', () => {
+        // when destructuring an object, the members in the object do not have to be in the same
+        // order as the variables on the left structure. The values are still set to the variables
+        // of the same name
+        const { first, second, ...others } = {
+            third: 3,
+            first: 1,
+            fourth : 4,
+            fifth: 5,
+            second: 2
+        };
+        expect(first).equal(1);
+        expect(second).equal(2);
+        expect(others).eql({ third: 3, fourth: 4, fifth: 5 }) ;
     });
     it('', () => {
     });
@@ -153,6 +178,38 @@ describe('ES6-destructuring', () => {
     it('', () => {
     });
     it('', () => {
+    });
+});
+
+describe('Spread syntax', () => {
+    // Spread syntax expands an array into its elements (counter part of rest)
+    it('Create new array based on existing array', ()=>{
+       const existingArray = [1, 2, 3];
+       const newArray = [...existingArray, 4, 5, 6];
+       assert.sameOrderedMembers([1, 2, 3, 4, 5, 6], newArray);
+    });
+    it('Clone an array', ()=>{
+        const existingArray = [1, 2, 3];
+        const clonedArray = [...existingArray];
+        assert.sameOrderedMembers(existingArray, clonedArray);
+    });
+    it('Clone an object', ()=>{
+        const obj = { firstName: 'Charlie', lastName: 'Chaplin' };
+        const cloned = { ...obj};
+        expect(cloned).eql(obj);
+    });
+    it('Convert from string to array with spread syntax [...str]', () => {
+        // Spread syntax allows an iterable such as an array expression or string to be expanded in places 
+        // where zero or more arguments (for function calls) or elements (for array literals) are expected, 
+        // or an object expression to be expanded in places where zero or more key-value pairs (for object 
+        // literals) are expected.
+        assert.sameOrderedMembers(['a', 'b', 'c', 'd', 'e'], [...'abcde'], "Arrays are not the same");
+    });
+    it('Application: use an array as function argument', ()=>{
+        const numbers = [1, 2, 3, 4, 5, 6];
+        const sumOf5 = (a, b, c, d, e) => a + b + c + d + e;
+        const result = sumOf5(...numbers);
+        expect(result).equal(15);
     });
 });
 
@@ -199,6 +256,40 @@ describe('Template literals', () => {
 
 
 describe('Array', () => {
+    it('Add an item to the end of an Array with push()', () => {
+        let fruits = ['apple', 'orange'];
+        fruits.push('mango');
+        assert.equal('mango', fruits[fruits.length-1]);
+    });
+    it('Remove an item from the end of an Array with pop()', () => {
+        let fruits = ['apple', 'orange'];
+        fruits.pop();
+        assert.equal(1, fruits.length);
+    });
+    it('Add an item to the beginning of an Array with unshift', () => {
+        let fruits = ['apple', 'orange'];
+        fruits.unshift('mango');
+        assert.equal('mango', fruits[0]);
+    });
+    it('Remove an item from the beginning of an Array with shift()', () => {
+        let fruits = ['apple', 'orange'];
+        fruits.shift();
+        assert.equal(1, fruits.length);
+    });
+    it('Remove items in range with splice()', ()=> {
+        let origItems = [FIRST, SECOND, THIRD, FOURTH];
+        let removedItems = origItems.splice(1, 2);
+
+        assert.sameOrderedMembers([FIRST, FOURTH], origItems);
+        assert.sameOrderedMembers([SECOND, THIRD], removedItems);
+    });
+    it('Shallow copy of an array with slice()', () => {
+        let origItems = [FIRST, SECOND, THIRD, FOURTH];
+        let shallowCopy = origItems.slice();
+
+        assert.sameOrderedMembers(origItems, shallowCopy);
+    });
+
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from
     it('Array.from({ length: n }) creates array of given length that filled with undefined', () => {
         const array = Array.from({ length: 3 });
