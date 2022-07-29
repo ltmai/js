@@ -29,14 +29,12 @@
             const colorLightGray = "#D3D3D3";
             const colorGreen = "#008000";
             const colorWhite = "#FFFFFF";
-            
-            const width = 1500;     // cellSize*columns; 
-            const height = 800;     // cellSize*rows; 
-            
-            var cellSize = 10;
-            
-            var columns = width/cellSize;
-            var rows = height/cellSize;
+
+            var cellSize = 1;
+            var columns = 1500;     // should be canvas height devided by cell size
+            var rows = 800;         // should be canvas width devided by cell size    
+            var width = cellSize*columns; 
+            var height = cellSize*rows; 
 
             var canvas = document.getElementById("canvas");    
             var ctx = canvas.getContext("2d");
@@ -80,15 +78,15 @@
             }
 
             function turnOn(i, j) {
-                fillRect(i, j, colorGreen); //--> inline                                        
-                //ctx.fillStyle = colorGreen;
-                //ctx.fillRect(i, j, 1, 1);
+                //fillRect(i, j, colorGreen); //--> inline                                        
+                ctx.fillStyle = colorGreen;
+                ctx.fillRect(i, j, 1, 1);
             }
 
             function turnOff(i, j) {
-                fillRect(i, j, colorWhite); //--> inline
-                //ctx.fillStyle = colorWhite;
-                //ctx.fillRect(i, j, 1, 1);
+                //fillRect(i, j, colorWhite); //--> inline
+                ctx.fillStyle = colorWhite;
+                ctx.fillRect(i, j, 1, 1);
             }
 
             // create an array of size m x n, initialized with v
