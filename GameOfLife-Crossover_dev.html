@@ -5,30 +5,55 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
         <title>Game of life</title>
+        <style>
+            table, td, th {
+              text-align: left;  
+              vertical-align: top;
+              border: 0px solid black;
+            }
+            table {              
+              border-collapse: collapse;
+            }
+        </style>        
     </head>
     <body>
         Ctrl + Mouse move : create live cells </br>
         Alt + Mouse move : remove live cells </br>  
-        <canvas id="canvas" width="1500" height="800" style="border:1px solid #d3d3d3;">
-            Your browsser does not support the HTML5 canvas tag.
-        </canvas>
+        
+        <table>
+          <tr>
+            <th>
+                <canvas id="canvas" width="1500" height="800" style="border:1px solid #d3d3d3;">
+                    Your browsser does not support the HTML5 canvas tag.
+                </canvas>               
+            </th>
+            <th>
+                <input type="button" id="Spider" value="Spider"/>
+                <input type="button" id="2-engine Cordership" value="2-engine Cordership"/>
+                <input type="button" id="Anura" value="Anura"/>
+                <input type="button" id="Big glider" value="Big glider"/>
+            </th>
+          </tr>
+        </table>
 
         <div id="info">
             <span>Generation: </span><span id="generation">0</span>
         </div>
 
         <div id="buttons">
-            <input type="button" id="start" value="Start">
-            <input type="button" id="stop" value="Stop">
-            <input type="button" id="step" value="Next">
-            <input type="button" id="reset" value="Reset">
-            <input type="button" id="slower" value="Slower">
-            <input type="button" id="faster" value="Faster">
+            <input type="button" id="start"  value="Start" />
+            <input type="button" id="stop"   value="Stop"  />
+            <input type="button" id="step"   value="Next"  />
+            <input type="button" id="reset"  value="Reset" />
+            <input type="button" id="slower" value="Slower"/>
+            <input type="button" id="faster" value="Faster"/>
         </div>
         <script>
             const colorLightGray = "#D3D3D3";
             const colorGreen = "#008000";
             const colorWhite = "#FFFFFF";
+            
+            var gridMode = true;
 
             var cellSize = 1;
             var columns = 1500;     // should be canvas height devided by cell size
@@ -47,15 +72,12 @@
             
             var liveCells;
             var maxLiveCells = 0;
-
-            //function Tuple(a,b) {
-            //    this.first = a;
-            //    this.second = b;
-            //}
+            
+            var turnOn =  turnOn_dot;   // function to turn on cells
+            var turnOff = turnOff_dot;  // function to turn off cells
 
             function drawGrid() {
                 ctx.strokeStyle = colorLightGray;
-                //ctx.strokeStyle = colorWhite;
                 for (let i = 0; i < width; i += cellSize) {
                     ctx.moveTo(i, 0);
                     ctx.lineTo(i, height);
@@ -69,24 +91,42 @@
                 }  
             }
 
-            // fill cell at (i, j) with color
             function fillRect(i, j, color) {
                 ctx.fillStyle = color;
                 ctx.fillRect((i)*cellSize+1, (j)*cellSize+1, cellSize-2, cellSize-2);
-                //ctx.fillRect((i)*cellSize, (j)*cellSize, cellSize, cellSize);                                        
-                //ctx.fillRect(i, j, 1, 1); // improve performance: cellSize==1
             }
 
-            function turnOn(i, j) {
-                //fillRect(i, j, colorGreen); //--> inline                                        
+            function fillRect_dot(i, j, color) {
+                ctx.fillStyle = color;
+                ctx.fillRect(i, j, 1, 1);
+            }
+
+            function turnOn_grid(i, j) {
+                fillRect(i, j, colorGreen); 
+            }
+
+            function turnOff_grid(i, j) {
+                fillRect(i, j, colorWhite); 
+            }
+            
+            function turnOn_dot(i, j) {
                 ctx.fillStyle = colorGreen;
                 ctx.fillRect(i, j, 1, 1);
             }
 
-            function turnOff(i, j) {
-                //fillRect(i, j, colorWhite); //--> inline
+            function turnOff_dot(i, j) {
                 ctx.fillStyle = colorWhite;
                 ctx.fillRect(i, j, 1, 1);
+            }
+            
+            function setGridMode(gridMode) {
+                if (gridMode) {
+                    cellSize = 5;
+                    columns = width/cellSize;
+                    rows = height/cellSize;
+                    turnOn = turnOn_grid;
+                    turnOff = turnOff_grid;
+                }
             }
 
             // create an array of size m x n, initialized with v
@@ -164,18 +204,14 @@
                 neighborCount[X_plus_1 ][Y_plus_1 ]+=v;
             }
 
-            // increase neighbor count of surrounding cells when adding new live cells
             function incNeighborCount (x, y) {            
                 updateNeighbors(x, y, 1);
             }    
 
-            // decrease neighbor count of surrounding cells when removing a dead cell
             function decNeighborCount (x, y) {
                 updateNeighbors(x, y, -1);
             }    
 
-
-            // set cell (x, y) a live cell
             function setLiveCell(x, y) {
                 if (occupations[x][y] != 1) {
                     liveCells.set(y * columns + x, 1);
@@ -185,7 +221,6 @@
                 }
             }    
 
-            // set cell (x, y) as dead cell
             function setDeadCell(x, y) {
                 occupations[x][y] = 0;
                 liveCells.delete(y * columns + x);
@@ -197,7 +232,6 @@
             function checkForNewLiveCell(x, y) {
                 if ((occupations[x][y]==0) && (neighborCount[x][y]==3)) {
                     occupations[x][y]=-1; // special flag to mark this cell becoming live, dont check again
-                    // newLiveCells.push(new Tuple(x, y));
                     newLiveCells.push({ x, y});
                 }
             }
@@ -238,19 +272,14 @@
                     checkForNewLiveCell(X_plus_1 , Y_plus_1 );
                     
                     if ((neighborCount[x][y] < 2) || (neighborCount[x][y] > 3))
-                        // newDeadCells.push (new Tuple(x, y));
                         newDeadCells.push ({ x, y});
                 });
 
-                // remove new dead cells
                 for (const e of newDeadCells) {
-                    //setDeadCell(e.first, e.second);            
                     setDeadCell(e.x, e.y);            
                 }
 
-                // create new live cells
                 for (const e of newLiveCells) {
-                    //setLiveCell(e.first, e.second);
                     setLiveCell(e.x, e.y);
                 }
 
@@ -258,12 +287,10 @@
                 gen.innerText=generation;                                       
             }
 
-            // stop timer
             function stop() {
                 window.clearInterval(intervalId);
             }
 
-            // start timer
             function start() {
                 stop();
                 intervalId = window.setInterval(update, interval);
@@ -311,13 +338,11 @@
                     }, false);
             }
 
-            // create next generation
             function step() {
                 stop();
                 update();
             }
 
-            // reset everything
             function reset() {
                 stop();     
                 liveCells.forEach((value, key)=>{
@@ -332,7 +357,6 @@
                 update();                                         
             }
 
-            // change speed by a number of milliseconds
             function changeSpeed(ms) {
                 stop();
                 interval += ms;
@@ -355,7 +379,6 @@
                 }
             }
             
-            // create a glider pattern at (x, y)
             function pattern_glider(x, y) {
                 stop();
 
@@ -368,14 +391,17 @@
                 start();
             }
                         
+            // x0 - upper left x
+            // y0 - upper left y
+            // w0 - pattern width
+            // h0 - pattern height
             function read_pattern(x0, y0, w0, h0, pattern) {
             
                 reset();
 
                 let tokens = pattern.split(/([b,o,$,!])/).filter(token => token.length > 0 && token != '!')                            
-                
-                let x = x0; // upper left x
-                let y = y0; // upper left y
+                let x = x0; 
+                let y = y0;
                 let count = 1;
 
                 console.log(tokens);
@@ -423,7 +449,7 @@
                 start();
             }
 
-            //drawGrid();
+            setGridMode(gridMode);
             
             neighborCount = createArray(columns, rows, 0);
             occupations = createArray(columns, rows, 0);    
@@ -432,16 +458,30 @@
             initMouseHandler();
 
             // bind event handlers to buttons
-            document.getElementById('start').addEventListener('click', start, false);    
-            document.getElementById('stop').addEventListener('click', stop, false);    
-            document.getElementById('step').addEventListener('click', step, false);
-            document.getElementById('reset').addEventListener('click', reset, false);
+            document.getElementById('start' ).addEventListener('click', start , false);    
+            document.getElementById('stop'  ).addEventListener('click', stop  , false);    
+            document.getElementById('step'  ).addEventListener('click', step  , false);
+            document.getElementById('reset' ).addEventListener('click', reset , false);
             document.getElementById('slower').addEventListener('click', slower, false);
             document.getElementById('faster').addEventListener('click', faster, false);
+            
+            var patterns = new Map();
+            // https://conwaylife.com/wiki/Category:Spaceships
+            patterns['Spider'             ] = { x: 50, y: 50, w: 27, h:  8, p: '9bo7bo9b$3b2obobob2o3b2obobob2o3b$3obob3o9b3obob3o$o3bobo5bobo5bobo3bo$4b2o6bobo6b2o4b$b2o9bobo9b2ob$b2ob2o15b2ob2ob$5bo15bo!' };
+            patterns['2-engine Cordership'] = { x: 20, y: 20, w: 41, h: 49, p: '19b2o$19b4o$19bob2o2$20bo$19b2o$19b3o$21bo$33b2o$33b2o7$36bo$35b2o$34bo3bo$35b2o2bo$40bo$37bobo$38bo$38bo$38b2o$38b2o3$13bo10bo$12b5o5bob2o11bo$11bo10bo3bo9bo$12b2o8b3obo9b2o$13b2o9b2o12bo$2o13bo21b3o$2o35b3o7$8b2o$8b2o11b2o$19b2o2bo$24bo3bo$18bo5bo3bo$19bo2b2o3bobo$20b3o5bo$28bo!' };
+            patterns['Anura'              ] = { x: 20, y: 20, w: 31, h: 54, p: '9bo11bo$8b3o9b3o$10bo9bo$6bob2o11b2obo$6bo4b3o3b3o4bo$5bob3ob3o3b3ob3obo2$4b3ob4obo3bob4ob3o$4b2o7bo3bo7b2o$4b3o2bob2o5b2obo2b3o2$9bo2bo5bo2bo$9bo11bo$7b2o2bobo3bobo2b2o$7bo3b3o3b3o3bo$5b2o4bo2bobo2bo4b2o$3bob2obob2o2bobo2b2obob2obo$2b2obo3bo3bo3bo3bo3bob2o$bobo3b2o13b2o3bobo$b2o8bo7bo8b2o$2bo7b3o5b3o7bo$10b2obo3bob2o$2o2b2o5b3o3b3o5b2o2b2o$obo3bo5b2o3b2o5bo3bobo$4bob2o15b2obo$8bo13bo$bo5b3o11b3o5bo$7b2o13b2o$3bo23bo$5b2o17b2o$5b6o9b6o$6bobo13bobo$2b3o4b2o4bo4b2o4b3o$2b2o4b3o3b3o3b3o4b2o$3b2obo6bo3bo6bob2o$12bobobobo$11bob2ob2obo$11bob5obo$9b2o9b2o$8b2o11b2o$8bo13bo2$6bobo13bobo$9bo11bo$5bo3bo11bo3bo$5bo4bo9bo4bo$5bo4bo9bo4bo$6bo17bo$8b3o9b3o$8bo13bo2$8bo13bo$6bo17bo$8bo13bo!'};
+            patterns['Big glider'         ] = { x: 20, y: 20, w: 18, h: 18, p: '3b3o12b$3bo2b3o9b$4bobo11b$2o7bo8b$obo4bo2bo7b$o8b2o7b$b2o15b$bo2bo5bob2o4b$bo9b2obo3b$3bobo6b2o2bob$4b2obo4b2o3bo$8bo7bob$7b4o3bobob$7bob2o3b4o$8bo3b2obo2b$13b2o3b$9bob3o4b$10bo2bo!'};
+                        
+            function show_pattern(name) {
+                let pattern = patterns[name];
+                read_pattern(pattern.x, pattern.y, pattern.w, pattern.h, pattern.p);
+            }
+            
+            document.getElementById('Spider'             ).addEventListener('click', ()=>show_pattern('Spider'), false);
+            document.getElementById('2-engine Cordership').addEventListener('click', ()=>show_pattern('2-engine Cordership'), false);
+            document.getElementById('Anura'              ).addEventListener('click', ()=>show_pattern('Anura'), false);
+            document.getElementById('Big glider'         ).addEventListener('click', ()=>show_pattern('Big glider'), false);
 
-            //TODO
-            // 2. Buttons for predefined patterns
-            // 5. Save initial pattern (experimenting purposes)
         </script>
 
     </body>

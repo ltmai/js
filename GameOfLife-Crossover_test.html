@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<!-- saved from url=(0050)file:///C:/dev/github/js/GameOfLife-Crossover.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Game of life</title>
+</head>
+<body>
+
+<canvas id="canvas" width="1800" height="900" style="border:1px solid #d3d3d3;">
+Your browsser does not support the HTML5 canvas tag.
+</canvas>
+
+<div id="info">
+<span>Generation: </span><span id="generation">1</span>
+</div>
+
+<div id="buttons">
+    <input type="button" id="start" value="Start">
+    <input type="button" id="stop" value="Stop">
+    <input type="button" id="step" value="Next">
+    <input type="button" id="reset" value="Reset">
+    <input type="button" id="slower" value="Slower">
+    <input type="button" id="faster" value="Faster">
+</div>
+<script>
+
+    const colorLightGray = "#D3D3D3";
+    const colorGreen = "#008000";
+    const colorWhite = "#FFFFFF";
+
+    var cellSize = 30;
+    var columns = 60; // should be canvas height devided by cell size
+    var rows = 30; // should be canvas width devided by cell size    
+    var width = cellSize*columns; 
+    var height = cellSize*rows; 
+    
+    var canvas = document.getElementById("canvas");    
+    var ctx = canvas.getContext("2d");
+    
+    var generation=0;
+    var gen = document.getElementById("generation");    
+    
+    var interval = 200; // milliseconds
+    var intervalId;
+
+    function Tuple(a,b) {
+        this.first = a;
+        this.second = b;
+    }
+    
+    function drawGrid() {
+        ctx.strokeStyle = colorLightGray;
+        for (let i = 0; i < width; i += cellSize) {
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, height);
+            ctx.stroke();
+        }
+
+        for (let i = 0; i < height; i += cellSize) {
+            ctx.moveTo(0, i);
+            ctx.lineTo(width, i);
+            ctx.stroke();
+        }  
+    }
+
+    // fill cell at (i, j) with color
+    function fillRect(i, j, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect((i)*cellSize+1, (j)*cellSize+1, cellSize-2, cellSize-2);
+    }
+
+    function turnOn(i, j) {
+        fillRect(i, j, colorGreen);
+    }
+
+    function turnOff(i, j) {
+        fillRect(i, j, colorWhite);
+    }
+   
+    // create an array of size m x n, initialized with v
+    function createArray(columns, rows, value) {
+        ret = new Array(columns);
+        
+        for (let i = 0; i < columns; i++) {
+            ret[i] = new Array(rows).fill(value);
+        }
+        return ret;
+    }
+    
+    // reset a 2D array
+    function resetArray2D(array, value) {
+        for (const e of array) {
+            e.fill(value);
+        }
+    }
+    
+    // update neighbor count of a given cell (x, y)
+    // if (x, y) is not inside the grid, the coordinates are
+    // normalized so that another cell at the other side of 
+    // the grid is updated.
+    // v is the delta to update neighbor count:
+    // v=1 to increment neighbor count
+    // v=-1 to decrease neighbor count
+    function updateNeighborCount(x, y, v) {
+        if (x<0) x=columns+x;
+        if (y<0) y=rows+y;
+        if (x>columns-1) x=0;
+        if (y>rows-1) y=0;
+        //console.log(x + ', ' + y + ' : ' + v);
+        neighborCount[x][y]+=v;
+    }
+    
+    //cell and its neighbor coordinates
+    //[x-1][y-1] [x][y-1] [x+1][y-1] 
+    //[x-1][y]   [x][y]   [x+1][y] 
+    //[x-1][y+1] [x][y+1] [x+1][y+1] 
+    
+    // update neighbor count of neighbors
+    function updateNeighbors(x, y, v) {
+        updateNeighborCount(x-1, y-1, v);
+        updateNeighborCount(x  , y-1, v);
+        updateNeighborCount(x+1, y-1, v);
+        updateNeighborCount(x-1, y  , v);
+        updateNeighborCount(x+1, y  , v);
+        updateNeighborCount(x-1, y+1, v);
+        updateNeighborCount(x  , y+1, v);
+        updateNeighborCount(x+1, y+1, v);
+    }
+    
+    // increase neighbor count of surrounding cells when adding new live cells
+    function incNeighborCount (x, y) {            
+        updateNeighbors(x, y, 1);
+    }    
+    
+    // decrease neighbor count of surrounding cells when removing a dead cell
+    function decNeighborCount (x, y) {
+        updateNeighbors(x, y, -1);
+    }    
+    
+    // set cell (x, y) a live cell
+    function setLiveCell(x, y) {
+        if (occupations[x][y] != 1) {
+            //console.log('New live cell (' + x + ', ' + y + ')');
+            liveCells.push(new Tuple(x, y));        
+            occupations[x][y] = 1;
+            incNeighborCount(x ,y);        
+            turnOn(x, y);
+        }
+    }    
+    
+    // set cell (x, y) as dead cell
+    function setDeadCell(x, y) {
+        let idx = liveCells.findIndex(e => (e.first == x) && (e.second == y));
+        
+        if (idx != -1) {
+            //console.log('Dead cell (' + x + ', ' + y + ')');
+            occupations[x][y] = 0;
+            liveCells.splice(idx, 1); // delete element by index
+            decNeighborCount(x,y);
+            turnOff(x,y);
+        }    
+    }
+    
+    // 1. Any live cell with two or three neighbors survives.
+    // 2. Any dead cell with three live neighbors becomes a live cell.
+    // 3. All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+    function update() {
+        newLiveCells = [];
+        newDeadCells = [];
+        
+        // check if a given dead cell becomes a live cell
+        function checkForNewLiveCell(x, y) {
+            if (x<0) x=columns+x;
+            if (y<0) y=rows+y;
+            if (x>columns-1) x=0;
+            if (y>rows-1) y=0;               
+            
+            if ((occupations[x][y]==0) && (neighborCount[x][y]==3)) {
+                occupations[x][y]=-1; // special flag to mark this cell becoming live, dont check again
+                newLiveCells.push( new Tuple(x, y));
+            }
+        }
+        
+        // collect an array of new live cells from neighbors of the current 
+        // live cells, because new live cells do not just come from nothing
+        for (const e of liveCells) {       
+            checkForNewLiveCell(e.first-1, e.second-1);
+            checkForNewLiveCell(e.first  , e.second-1);
+            checkForNewLiveCell(e.first+1, e.second-1);
+            checkForNewLiveCell(e.first-1, e.second  );
+            checkForNewLiveCell(e.first+1, e.second  );
+            checkForNewLiveCell(e.first-1, e.second+1);
+            checkForNewLiveCell(e.first  , e.second+1);
+            checkForNewLiveCell(e.first+1, e.second+1);
+        }
+        
+        // any other current live cells having less than 2 or more than 3 neighbors will die
+        for (const e of liveCells) {
+            if ((neighborCount[e.first][e.second] < 2) || (neighborCount[e.first][e.second] > 3))
+                newDeadCells.push (new Tuple(e.first, e.second));
+        }
+        
+        // remove new dead cells
+        for (const e of newDeadCells) {
+            setDeadCell(e.first, e.second);            
+        }
+        
+        // create new live cells
+        for (const e of newLiveCells) {
+            setLiveCell(e.first, e.second);
+        }
+        
+        generation += 1;
+        gen.innerText=generation;
+    }
+    
+    // create a blinker pattern at (x, y)
+    function pattern_blinker(x, y) {
+        stop();
+        
+        setLiveCell(x, y-1);
+        setLiveCell(x, y  );
+        setLiveCell(x, y+1);
+
+        start();
+    }    
+    
+    // create a glider pattern at (x, y)
+    function pattern_glider(x, y) {
+        stop();
+        
+        setLiveCell(x  , y  );
+        setLiveCell(x+1, y+1);
+        setLiveCell(x+2, y+1);
+        setLiveCell(x  , y+2);
+        setLiveCell(x+1, y+2);
+        
+        start();
+    }
+    
+    // create a toad pattern at (x, y)
+    function pattern_toad(x, y) {
+        stop();
+        
+        setLiveCell(x+1, y  );
+        setLiveCell(x+2, y  );
+        setLiveCell(x+3, y  );
+        setLiveCell(x  , y+1);
+        setLiveCell(x+1, y+1);
+        setLiveCell(x+2, y+1);
+        
+        start();
+    }
+    
+    // create an eater pattern at (x, y)
+    // xx  
+    // x x
+    //   x
+    //   x
+    function pattern_eater(x, y) {
+        stop();
+        
+        setLiveCell(x  , y  );
+        setLiveCell(x+1, y  );
+        setLiveCell(x  , y+1);
+        setLiveCell(x+2, y+1);
+        setLiveCell(x+2, y+2);
+        setLiveCell(x+2, y+3);
+        setLiveCell(x+3, y+3);
+        
+        start();
+    }
+
+    // create a penta decathlon pattern at (x, y)
+    function pattern_pentadecathlon(x, y) {
+        stop();
+        
+        setLiveCell(x+1, y  );
+        setLiveCell(x+2, y  );
+        setLiveCell(x+3, y  );
+        setLiveCell(x  , y+1);
+        setLiveCell(x+4, y+1);
+        setLiveCell(x  , y+2);
+        setLiveCell(x+4, y+2);
+        setLiveCell(x+1, y+3);
+        setLiveCell(x+2, y+3);
+        setLiveCell(x+3, y+3);
+
+        setLiveCell(x+1, y+8);
+        setLiveCell(x+2, y+8);
+        setLiveCell(x+3, y+8);
+        setLiveCell(x  , y+1+8);
+        setLiveCell(x+4, y+1+8);
+        setLiveCell(x  , y+2+8);
+        setLiveCell(x+4, y+2+8);
+        setLiveCell(x+1, y+3+8);
+        setLiveCell(x+2, y+3+8);
+        setLiveCell(x+3, y+3+8);
+        
+        start();
+    }
+    
+    // stop timer
+    function stop() {
+        window.clearInterval(intervalId);
+    }
+    
+    // start timer
+    function start() {
+        stop();
+        intervalId = window.setInterval(update, interval);
+    }
+    
+    // test
+    function test() {
+        for (let i = 1; i < columns-15; i+= 15) {
+            for (let j = 1; j < rows-25; j+= 25) {
+                pattern_glider(i, j);
+                //pattern_pentadecathlon(i+10, j+10);
+            }
+        }
+    }
+       
+    // get relative mouse position
+    function getMousePos(canvas, evt) {
+        var rect = canvas.getBoundingClientRect();
+        return {
+          x: evt.clientX - rect.left,
+          y: evt.clientY - rect.top
+        };
+    }
+    
+    // get cell coordinate
+    function getCellCoord(pos) {
+        return {
+            x : Math.floor(pos.x / cellSize),
+            y : Math.floor(pos.y / cellSize)
+        }
+    }
+    
+    // mouse event handling
+    function initMouseHandler() {
+        // while moving mouse hold Control to initialize live cells
+        // or hold Shift to uninitialize live cells
+        canvas.addEventListener('mousemove', function(evt) {
+            if (evt.ctrlKey) {
+                let mouseCoord = getCellCoord(getMousePos(canvas, evt));
+                setLiveCell(mouseCoord.x, mouseCoord.y);    
+            }
+            if (evt.altKey) {
+                let mouseCoord = getCellCoord(getMousePos(canvas, evt));
+                setDeadCell(mouseCoord.x, mouseCoord.y);    
+            }            
+        }, false);
+    }
+    
+    // create next generation
+    function step() {
+        stop();
+        update();
+    }
+    
+    // reset everything
+    function reset() {
+        stop();     
+        resetArray2D(neighborCount, 0);
+        resetArray2D(occupations, 0);
+        generation=0;
+        update();        
+    }
+    
+    // change speed by a number of milliseconds
+    function changeSpeed(ms) {
+        stop();
+        interval += ms;
+        start();
+    }
+    
+    function slower() {
+        changeSpeed(100);        
+    }
+    
+    function faster() {
+        if (interval >= 200)
+            changeSpeed(-100);
+    }
+    
+    drawGrid();
+    
+    neighborCount = createArray(columns, rows, 0);
+    occupations = createArray(columns, rows, 0);    
+    liveCells = [];
+    
+    initMouseHandler();
+    
+    // bind event handlers to buttons
+    document.getElementById('start').addEventListener('click', start, false);    
+    document.getElementById('stop').addEventListener('click', stop, false);    
+    document.getElementById('step').addEventListener('click', step, false);
+    document.getElementById('reset').addEventListener('click', reset, false);
+    document.getElementById('slower').addEventListener('click', slower, false);
+    document.getElementById('faster').addEventListener('click', faster, false);
+
+    //TODO
+    // 2. Buttons for predefined patterns
+    // 4. Load patterns from user
+    // 5. Save initial pattern (experimenting purposes)
+    // 1. Help/Guide
+</script>
+
+
+</body></html>
